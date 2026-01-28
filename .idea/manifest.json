@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Prompt Manager (Glass)",
+  "version": "1.1",
+  "description": "Сохранение промптов с фильтрацией по сайтам в стиле Glassmorphism",
+  "permissions": ["storage", "tabs"],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+
+    <div id="mainView">
+        <div class="header">
+            <div class="top-row">
+                <h3>AI Prompts</h3>
+                <div class="controls">
+                    <button id="themeBtn" class="icon-btn" title="Тема"></button>
+                    <button id="settingsBtn" class="icon-btn" title="Настройки"></button>
+                </div>
+            </div>
+
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="Найти промпт...">
+            </div>
+
+            <div id="filterContainer" class="filters-scroll"></div>
+        </div>
+
+        <div class="editor-card">
+            <div class="editor-inner">
+                <div class="editor-header">
+                    <span class="cat-label">Категория:</span>
+
+                    <div class="custom-select" id="customSelect">
+                        <div class="select-trigger">
+                            <span id="selectedValue">Выбрать...</span>
+                            <svg class="select-arrow" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+                        </div>
+                        <div class="select-options" id="selectOptions">
+                        </div>
+                    </div>
+                    <input type="hidden" id="categoryInput">
+
+                </div>
+                <textarea id="promptInput" placeholder="Опиши, что ты хочешь создать..."></textarea>
+                <button id="saveBtn" class="action-btn">
+                    <span>Сохранить</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                </button>
+            </div>
+        </div>
+
+        <div id="promptsList" class="prompts-list"></div>
+    </div>
+
+    <div id="settingsView" class="hidden">
+        <div class="header">
+            <div class="top-row">
+                <button id="backBtn" class="nav-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+                    Назад
+                </button>
+                <h3>Настройки</h3>
+            </div>
+        </div>
+
+        <div class="settings-card">
+            <div class="add-cat-row">
+                <input type="text" id="newCatInput" placeholder="Новая категория">
+                <button id="addCatBtn" class="icon-btn-plus">+</button>
+            </div>
+            <div class="divider"></div>
+            <div id="categoriesList" class="settings-list"></div>
+        </div>
+    </div>
+
+</div>
+<script src="popup.js"></script>
+</body>
+</html>
