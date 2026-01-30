@@ -1,10 +1,20 @@
 {
   "manifest_version": 3,
-  "name": "Prompt Manager (Glass)",
-  "version": "1.1",
-  "description": "Сохранение промптов с фильтрацией по сайтам в стиле Glassmorphism",
-  "permissions": ["storage", "tabs"],
+  "name": "Record Manager",
+  "version": "1.2",
+  "description": "Удобное сохранение текстовых записей и заметок",
+  "permissions": [
+    "storage",
+    "tabs",
+    "sidePanel"
+  ],
   "action": {
-    "default_popup": "popup.html"
+    "default_title": "Открыть Record Manager"
+  },
+  "side_panel": {
+    "default_path": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
   }
 }

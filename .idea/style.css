@@ -41,13 +41,14 @@
 
 body {
     margin: 0;
-    width: 380px;
-    min-height: 540px;
+    width: 100%;
+    min-height: 100vh;
     font-family: -apple-system, BlinkMacSystemFont, "Inter", "SF Pro Text", Roboto, sans-serif;
     background-color: var(--bg-color);
     background-image: var(--bg-gradient);
     color: var(--text-primary);
     transition: all 0.3s ease;
+    overflow-x: hidden;
 }
 
 .hidden {
