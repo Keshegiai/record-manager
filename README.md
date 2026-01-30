@@ -56,7 +56,3 @@ Click the extension icon in the browser toolbar. The **Side Panel** will open on
 * **HTML5 / CSS3** (CSS Variables, Flexbox, Backdrop-filter)
 * **JavaScript** (Vanilla JS)
 * **Chrome Extension API** (Storage, SidePanel)
-
----
-
-Developed by Aydin Almassov
