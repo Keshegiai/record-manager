@@ -527,3 +527,32 @@ textarea::placeholder {
     font-weight: 500;
     color: var(--text-primary);
 }
+
+.lang-select {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    color: var(--text-secondary);
+    border-radius: 8px;
+    padding: 0 8px;
+    height: 36px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+    backdrop-filter: blur(4px);
+    transition: all 0.2s;
+}
+
+.lang-select:hover {
+    color: var(--text-primary);
+    border-color: var(--accent);
+}
+
+.lang-select option {
+    background: #1a1a1a;
+    color: #fff;
+}
+[data-theme="light"] .lang-select option {
+    background: #fff;
+    color: #000;
+}

@@ -3,6 +3,7 @@ const settingsView = document.getElementById('settingsView');
 const themeBtn = document.getElementById('themeBtn');
 const settingsBtn = document.getElementById('settingsBtn');
 const backBtn = document.getElementById('backBtn');
+const langSelect = document.getElementById('langSelect');
 
 const searchInput = document.getElementById('searchInput');
 const filterContainer = document.getElementById('filterContainer');
@@ -21,11 +22,66 @@ const newCatInput = document.getElementById('newCatInput');
 const addCatBtn = document.getElementById('addCatBtn');
 const categoriesList = document.getElementById('categoriesList');
 
+const TRANSLATIONS = {
+    ru: {
+        appTitle: "Менеджер записей",
+        themeTitle: "Тема",
+        settingsTitle: "Настройки",
+        searchPlaceholder: "Найти запись...",
+        catLabel: "Категория:",
+        selectPlaceholder: "Выбрать...",
+        inputPlaceholder: "Введите текст записи...",
+        saveBtn: "Сохранить",
+        backBtn: "Назад",
+        newCatPlaceholder: "Новая категория",
+        all: "Все",
+        delete: "Удалить",
+        confirmDelete: "Удалить категорию",
+        copied: "Скопировано! ✅",
+        uncategorized: "Без категории"
+    },
+    kk: {
+        appTitle: "Жазбалар менеджері",
+        themeTitle: "Тақырып",
+        settingsTitle: "Баптаулар",
+        searchPlaceholder: "Жазбаны іздеу...",
+        catLabel: "Санат:",
+        selectPlaceholder: "Таңдау...",
+        inputPlaceholder: "Жазба мәтінін енгізіңіз...",
+        saveBtn: "Сақтау",
+        backBtn: "Артқа",
+        newCatPlaceholder: "Жаңа санат",
+        all: "Барлығы",
+        delete: "Өшіру",
+        confirmDelete: "Санатты өшіру керек пе",
+        copied: "Көшірілді! ✅",
+        uncategorized: "Санатсыз"
+    },
+    en: {
+        appTitle: "Record Manager",
+        themeTitle: "Theme",
+        settingsTitle: "Settings",
+        searchPlaceholder: "Search records...",
+        catLabel: "Category:",
+        selectPlaceholder: "Select...",
+        inputPlaceholder: "Enter record text...",
+        saveBtn: "Save",
+        backBtn: "Back",
+        newCatPlaceholder: "New category",
+        all: "All",
+        delete: "Delete",
+        confirmDelete: "Delete category",
+        copied: "Copied! ✅",
+        uncategorized: "Uncategorized"
+    }
+};
+
 let state = {
     prompts: [],
-    categories: ['MUIT', 'Kamiqr', 'Gemini'],
+    categories: ['Personal'],
     theme: 'dark',
-    filter: 'Все',
+    lang: 'ru',
+    filter: 'All',
     search: '',
     selectedCategory: ''
 };
@@ -39,7 +95,7 @@ const ICONS = {
 settingsBtn.innerHTML = ICONS.gear;
 
 function init() {
-    chrome.storage.local.get(['prompts', 'categories', 'theme'], (res) => {
+    chrome.storage.local.get(['prompts', 'categories', 'theme', 'lang'], (res) => {
         if (res.prompts) {
             state.prompts = res.prompts.map((p, index) => {
                 if (!p.id) p.id = Date.now() + index;
@@ -48,17 +104,20 @@ function init() {
         }
 
         if (res.categories && res.categories.length > 0) {
-            state.categories = res.categories.filter(c => c !== 'Общее');
+            state.categories = res.categories.filter(c => c !== 'Общее' && c !== 'All' && c !== 'Все' && c !== 'Барлығы');
         }
         if (state.categories.length === 0) {
             state.categories = ['MUIT'];
         }
 
         if (res.theme) state.theme = res.theme;
+        if (res.lang) state.lang = res.lang;
 
         state.selectedCategory = state.categories[0];
+        state.filter = 'ALL_FILTER_KEY';
 
         applyTheme(state.theme);
+        applyLanguage(state.lang);
         renderAll();
     });
 }
@@ -67,7 +126,32 @@ function applyTheme(name) {
     state.theme = name;
     document.body.setAttribute('data-theme', name);
     themeBtn.innerHTML = name === 'dark' ? ICONS.sun : ICONS.moon;
-    chrome.storage.local.set({ theme: name });
+    saveData();
+}
+
+function applyLanguage(lang) {
+    state.lang = lang;
+    langSelect.value = lang;
+    const t = TRANSLATIONS[lang];
+
+    document.getElementById('t-appTitle').innerText = t.appTitle;
+    document.getElementById('t-catLabel').innerText = t.catLabel;
+    document.getElementById('t-saveBtn').innerText = t.saveBtn;
+    document.getElementById('t-backBtn').innerText = t.backBtn;
+    document.getElementById('t-settingsTitle').innerText = t.settingsTitle;
+
+    themeBtn.title = t.themeTitle;
+    settingsBtn.title = t.settingsTitle;
+    searchInput.placeholder = t.searchPlaceholder;
+    promptInput.placeholder = t.inputPlaceholder;
+    newCatInput.placeholder = t.newCatPlaceholder;
+
+    if (selectedValueSpan.innerText === 'Выбрать...' || selectedValueSpan.innerText === 'Select...' || selectedValueSpan.innerText === 'Таңдау...') {
+        selectedValueSpan.innerText = t.selectPlaceholder;
+    }
+
+    renderAll();
+    saveData();
 }
 
 function renderAll() {
@@ -76,6 +160,10 @@ function renderAll() {
     renderList();
     renderSettings();
 }
+
+langSelect.onchange = (e) => {
+    applyLanguage(e.target.value);
+};
 
 selectTrigger.onclick = (e) => {
     e.stopPropagation();
@@ -90,15 +178,13 @@ document.onclick = (e) => {
 
 function renderCustomDropdown() {
     selectOptions.innerHTML = '';
-    if (state.filter !== 'Все' && state.categories.includes(state.filter)) {
-        state.selectedCategory = state.filter;
-    }
-    if (!state.categories.includes(state.selectedCategory) && state.categories.length > 0) {
-        state.selectedCategory = state.categories[0];
-    }
+    const t = TRANSLATIONS[state.lang];
 
-    selectedValueSpan.innerText = state.selectedCategory;
-    categoryInput.value = state.selectedCategory;
+    if (state.selectedCategory && state.categories.includes(state.selectedCategory)) {
+        selectedValueSpan.innerText = state.selectedCategory;
+    } else {
+        selectedValueSpan.innerText = t.selectPlaceholder;
+    }
 
     state.categories.forEach(cat => {
         const opt = document.createElement('div');
@@ -118,17 +204,22 @@ function renderCustomDropdown() {
 }
 
 function renderFilters() {
-    const all = ['Все', ...state.categories];
+    const t = TRANSLATIONS[state.lang];
+    const all = ['ALL_FILTER_KEY', ...state.categories];
     filterContainer.innerHTML = '';
 
-    all.forEach(cat => {
+    all.forEach(catKey => {
+        const isAll = catKey === 'ALL_FILTER_KEY';
+        const displayName = isAll ? t.all : catKey;
+
         const chip = document.createElement('div');
-        chip.className = `chip ${cat === state.filter ? 'active' : ''}`;
-        chip.innerText = cat;
+        chip.className = `chip ${catKey === state.filter ? 'active' : ''}`;
+        chip.innerText = displayName;
+
         chip.onclick = () => {
-            state.filter = cat;
-            if (cat !== 'Все') {
-                state.selectedCategory = cat;
+            state.filter = catKey;
+            if (!isAll) {
+                state.selectedCategory = catKey;
             }
             renderAll();
         };
@@ -138,9 +229,10 @@ function renderFilters() {
 
 function renderList() {
     promptsList.innerHTML = '';
+    const t = TRANSLATIONS[state.lang];
 
     const filtered = state.prompts.filter(p => {
-        const byCat = state.filter === 'Все' || p.category === state.filter;
+        const byCat = state.filter === 'ALL_FILTER_KEY' || p.category === state.filter;
         const bySearch = p.text.toLowerCase().includes(state.search.toLowerCase());
         return byCat && bySearch;
     });
@@ -161,7 +253,7 @@ function renderList() {
             const originalText = p.text;
 
             el.classList.add('copied');
-            textDiv.innerText = 'Скопировано! ✅';
+            textDiv.innerText = t.copied;
 
             setTimeout(() => {
                 el.classList.remove('copied');
@@ -181,21 +273,23 @@ function renderList() {
 
 function renderSettings() {
     categoriesList.innerHTML = '';
+    const t = TRANSLATIONS[state.lang];
+
     state.categories.forEach(cat => {
         const row = document.createElement('div');
         row.className = 'setting-row';
-        row.innerHTML = `<span class="cat-name">${cat}</span><span class="cat-del">Удалить</span>`;
+        row.innerHTML = `<span class="cat-name">${cat}</span><span class="cat-del">${t.delete}</span>`;
 
         row.querySelector('.cat-del').onclick = () => {
-            if (confirm(`Удалить категорию "${cat}"?`)) {
+            if (confirm(`${t.confirmDelete} "${cat}"?`)) {
                 state.categories = state.categories.filter(c => c !== cat);
-                const fallback = state.categories.length > 0 ? state.categories[0] : 'Без категории';
+                const fallback = state.categories.length > 0 ? state.categories[0] : t.uncategorized;
 
                 state.prompts.forEach(p => {
                     if (p.category === cat) p.category = fallback;
                 });
 
-                if (state.filter === cat) state.filter = 'Все';
+                if (state.filter === cat) state.filter = 'ALL_FILTER_KEY';
                 if (state.selectedCategory === cat) state.selectedCategory = fallback;
 
                 saveData();
@@ -208,7 +302,9 @@ function renderSettings() {
 function saveData() {
     chrome.storage.local.set({
         prompts: state.prompts,
-        categories: state.categories
+        categories: state.categories,
+        theme: state.theme,
+        lang: state.lang
     }, renderAll);
 }
 
