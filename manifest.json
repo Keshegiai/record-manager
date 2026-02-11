@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Record Manager",
+  "version": "1.2",
+  "description": "Удобное сохранение текстовых записей и заметок",
+  "permissions": [
+    "storage",
+    "tabs",
+    "sidePanel"
+  ],
+  "action": {
+    "default_title": "Открыть Record Manager"
+  },
+  "side_panel": {
+    "default_path": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}

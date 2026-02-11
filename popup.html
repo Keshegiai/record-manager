@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Record Manager</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+    <!-- Toast уведомления -->
+    <div id="toast" class="toast hidden">
+        <span id="toastIcon">✅</span>
+        <span id="toastMessage">Скопировано!</span>
+    </div>
+
+    <div id="mainView">
+        <div class="header">
+            <div class="top-row">
+                <div class="title-section">
+                    <div class="logo">📝</div>
+                    <div class="title-info">
+                        <h3 id="t-appTitle">Менеджер записей</h3>
+                        <span class="record-count" id="recordCount">0 записей</span>
+                    </div>
+                </div>
+                <div class="controls">
+                    <select id="langSelect" class="lang-select">
+                        <option value="ru">RU</option>
+                        <option value="kk">KZ</option>
+                        <option value="en">EN</option>
+                    </select>
+
+                    <button id="themeBtn" class="icon-btn" title="Тема"></button>
+                    <button id="settingsBtn" class="icon-btn" title="Настройки"></button>
+                </div>
+            </div>
+
+            <div class="search-bar">
+                <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <input type="text" id="searchInput" placeholder="Найти запись...">
+                <div class="sort-dropdown">
+                    <button id="sortBtn" class="icon-btn-small" title="Сортировка">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 6h18M6 12h12M9 18h6"/>
+                        </svg>
+                    </button>
+                    <div class="sort-menu hidden" id="sortMenu">
+                        <div class="sort-option active" data-sort="date-desc">📅 Сначала новые</div>
+                        <div class="sort-option" data-sort="date-asc">📅 Сначала старые</div>
+                        <div class="sort-option" data-sort="alpha-asc">🔤 А-Я</div>
+                        <div class="sort-option" data-sort="alpha-desc">🔤 Я-А</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="filterContainer" class="filters-scroll"></div>
+        </div>
+
+        <div class="editor-card">
+            <div class="editor-inner">
+                <div class="editor-header">
+                    <span class="cat-label" id="t-catLabel">Категория:</span>
+
+                    <div class="custom-select" id="customSelect">
+                        <div class="select-trigger">
+                            <span class="category-color-dot" id="selectedColorDot"></span>
+                            <span id="selectedValue">Выбрать...</span>
+                            <svg class="select-arrow" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+                        </div>
+                        <div class="select-options" id="selectOptions">
+                        </div>
+                    </div>
+                    <input type="hidden" id="categoryInput">
+                </div>
+                <div class="textarea-wrapper">
+                    <textarea id="promptInput" placeholder="Введите текст записи..."></textarea>
+                    <span class="char-count" id="charCount">0</span>
+                </div>
+                <div class="editor-actions">
+                    <button id="clearBtn" class="clear-btn" title="Очистить">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 6L6 18M6 6l12 12"/>
+                        </svg>
+                    </button>
+                    <button id="saveBtn" class="action-btn">
+                        <span id="t-saveBtn">Сохранить</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Пустое состояние -->
+        <div id="emptyState" class="empty-state hidden">
+            <div class="empty-illustration">
+                <svg viewBox="0 0 200 200" fill="none">
+                    <circle cx="100" cy="100" r="80" fill="var(--accent-glow)" opacity="0.3"/>
+                    <rect x="60" y="50" width="80" height="100" rx="8" fill="var(--card-bg)" stroke="var(--accent)" stroke-width="2"/>
+                    <line x1="75" y1="75" x2="125" y2="75" stroke="var(--text-secondary)" stroke-width="3" stroke-linecap="round"/>
+                    <line x1="75" y1="95" x2="115" y2="95" stroke="var(--text-secondary)" stroke-width="3" stroke-linecap="round"/>
+                    <line x1="75" y1="115" x2="105" y2="115" stroke="var(--text-secondary)" stroke-width="3" stroke-linecap="round"/>
+                    <circle cx="145" cy="130" r="25" fill="var(--accent)"/>
+                    <path d="M137 130h16M145 122v16" stroke="white" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <h4 id="t-emptyTitle">Нет записей</h4>
+            <p id="t-emptyDesc">Создайте первую запись, чтобы начать</p>
+        </div>
+
+        <div id="promptsList" class="prompts-list"></div>
+    </div>
+
+    <!-- Модальное окно редактирования -->
+    <div id="editModal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="t-editTitle">Редактирование</h3>
+                <button id="closeModal" class="icon-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="edit-category-row">
+                    <span class="cat-label">Категория:</span>
+                    <div class="custom-select" id="editCategorySelect">
+                        <div class="select-trigger">
+                            <span class="category-color-dot" id="editSelectedColorDot"></span>
+                            <span id="editSelectedValue">Выбрать...</span>
+                            <svg class="select-arrow" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+                        </div>
+                        <div class="select-options" id="editSelectOptions"></div>
+                    </div>
+                </div>
+                <textarea id="editTextarea" placeholder="Текст записи..."></textarea>
+                <div class="edit-char-count"><span id="editCharCount">0</span></div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelEdit" class="secondary-btn">Отмена</button>
+                <button id="saveEdit" class="action-btn">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Undo уведомление -->
+    <div id="undoBar" class="undo-bar hidden">
+        <span id="t-undoText">Запись удалена</span>
+        <button id="undoBtn" class="undo-btn">Отменить</button>
+    </div>
+
+    <div id="settingsView" class="hidden">
+        <div class="header">
+            <div class="top-row">
+                <button id="backBtn" class="nav-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+                    <span id="t-backBtn">Назад</span>
+                </button>
+                <h3 id="t-settingsTitle">Настройки</h3>
+            </div>
+        </div>
+
+        <div class="settings-card">
+            <h4 class="settings-section-title" id="t-categoriesTitle">Категории</h4>
+            <div class="add-cat-row">
+                <div class="color-picker-wrapper">
+                    <input type="color" id="newCatColor" value="#3b82f6" class="color-picker">
+                </div>
+                <input type="text" id="newCatInput" placeholder="Новая категория">
+                <button id="addCatBtn" class="icon-btn-plus">+</button>
+            </div>
+            <div class="divider"></div>
+            <div id="categoriesList" class="settings-list"></div>
+        </div>
+
+        <div class="settings-card">
+            <h4 class="settings-section-title" id="t-dataTitle">Данные</h4>
+            <div class="data-actions">
+                <button id="exportBtn" class="data-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    <span id="t-exportBtn">Экспорт</span>
+                </button>
+                <button id="importBtn" class="data-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    <span id="t-importBtn">Импорт</span>
+                </button>
+                <input type="file" id="importFile" accept=".json" class="hidden">
+            </div>
+        </div>
+    </div>
+
+</div>
+<script src="popup.js"></script>
+</body>
+</html>
