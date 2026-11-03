@@ -1,58 +1,65 @@
-# 📝 Record Manager
+# Record Manager
 
-**Record Manager** is a convenient Google Chrome extension that helps you save, organize, and quickly access text records, notes, response templates, or AI prompts.
+A Chrome extension for saving text snippets, reply templates and AI prompts in the browser's **side panel**. Click a record to copy it.
 
-The extension operates within the browser's **Side Panel**, allowing you to keep your notes open without obstructing the page content while you work.
+The design is minimal and iOS-inspired: flat surfaces, Apple system colors, hairline separators, no gradients.
 
-## ✨ Features
+## Features
 
-* **Side Panel:** The window stays open and doesn't close when you click on the page, enabling parallel workflow.
-* **Stylish Design:** Modern interface with Glassmorphism (frosted glass) effect.
-* **Themes:** Supports both Dark 🌙 and Light ☀️ themes.
-* **Categories:** Sort records by projects or topics (e.g., *Kamiqr*, *Personal*, *Work*).
-* **Quick Copy:** Click on a card to instantly copy the text to the clipboard.
-* **Search & Filter:** Instant search through your records content.
+- **Side panel**: stays open while you work on the page.
+- **Light, Dark and Auto themes**: Auto follows the system setting.
+- **Categories** with a fixed color palette, filter chips and a category picker.
+- **Search** across record text and category names; sort by date or alphabetically.
+- **Click to copy**, with confirmation (and an error message if the clipboard is unavailable).
+- **Edit** in a bottom sheet; **delete with undo** (several deletions can be undone together).
+- **Export / import** a JSON backup. Import merges data and never overwrites existing records.
+- **Languages**: Русский, Қазақша, English.
+- **Keyboard**: `Ctrl/⌘ + Enter` or `Ctrl/⌘ + S` saves, `Ctrl/⌘ + F` focuses search, `Esc` closes dialogs.
+- Accessible: real buttons, ARIA roles for segmented controls and menus, visible focus, `prefers-reduced-motion` support.
 
----
+## Privacy & security
 
-## 🚀 Installation
+Records are stored only in `chrome.storage.local` on your device. The extension makes **no network requests** and collects no data.
 
-Since the extension is currently in local development, it requires manual installation:
+- **Minimal permissions**: only `storage` and `sidePanel`. (The unused `tabs` permission from v1 was removed.)
+- **Strict Content Security Policy**: `default-src 'none'; script-src 'self'; style-src 'self'; …`. No remote code, no inline scripts or styles, and `connect-src` is `'none'`, so the page cannot send data anywhere.
+- **No HTML injection**: the UI never uses `innerHTML`. All user data is rendered with `textContent`.
+- **Validated data**: everything read from storage or an imported file goes through `js/schema.js`, which:
+  - enforces types and limits (20,000 characters per record, 5,000 records, 50 categories, 5 MB import);
+  - strips control characters, and removes zero-width and bidi-override characters from names (Trojan Source-style spoofing);
+  - allows only palette colors, so a color can never inject CSS;
+  - ignores prototype-pollution keys and unknown fields.
+- **Safe migration**: data from v1 is converted automatically, and an untouched copy is kept under `legacyBackupV1`.
 
-1.  **Download this repository** (Click `Code` -> `Download ZIP` and extract it, or use `git clone`).
-2.  Open Google Chrome.
-3.  Type `chrome://extensions/` in the address bar and press Enter.
-4.  Toggle the **"Developer mode"** switch in the top right corner.
-5.  Click the **"Load unpacked"** button that appears on the left.
-6.  Select the folder containing the `manifest.json` file (the root folder of the project).
+## Installation (developer mode)
 
-✅ **Done!** The extension icon will appear in the Chrome toolbar.
+1. Clone or download this repository.
+2. Open `chrome://extensions/` and turn on **Developer mode**.
+3. Click **Load unpacked** and select the project folder (the one containing `manifest.json`).
+4. Click the extension icon to open the side panel.
 
----
+Requires Chrome 116 or newer.
 
-## 📖 Usage Guide
+## Project structure
 
-### 1. Opening the Panel
-Click the extension icon in the browser toolbar. The **Side Panel** will open on the right. You can resize it by dragging the left edge.
+```
+manifest.json        MV3 manifest with a strict CSP
+background.js        Opens the side panel on toolbar click
+sidepanel.html       Markup and inline SVG icon sprite
+css/sidepanel.css    Design tokens (light/dark) and components
+js/app.js            UI: rendering and events
+js/schema.js         Data model, validation, migration, import/export (pure, unit-tested)
+js/storage.js        chrome.storage wrapper (serialized writes, multi-window sync)
+js/i18n.js           RU / KK / EN strings, plurals, dates
+js/theme-boot.js     Applies the saved theme before first paint
+_locales/            Store name and description (en, ru)
+tests/               Unit tests (node:test, no dependencies)
+```
 
-### 2. Creating a Record
-1.  Select a **Category** from the dropdown menu (or create a new one in Settings).
-2.  Type your text in the input field.
-3.  Click the **"Save"** button.
+## Development
 
-### 3. Using Records
-* **Copying:** Simply click on any record card — the text will be copied to your clipboard, and a "Copied! ✅" notification will appear.
-* **Deleting:** Click the `×` cross icon in the corner of a card to delete the record.
+```bash
+npm test
+```
 
-### 4. Managing Categories
-1.  Click the **Settings (⚙️)** button.
-2.  Enter a name in the "New Category" field and click `+`.
-3.  You can also delete unwanted categories here.
-
----
-
-## 🛠 Tech Stack
-
-* **HTML5 / CSS3** (CSS Variables, Flexbox, Backdrop-filter)
-* **JavaScript** (Vanilla JS)
-* **Chrome Extension API** (Storage, SidePanel)
+The tests use Node's built-in test runner (Node 20+) and need no `npm install`.

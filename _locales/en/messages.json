@@ -1,0 +1,5 @@
+{
+  "extName": { "message": "Record Manager" },
+  "extDescription": { "message": "Save text snippets, reply templates and AI prompts in the side panel. Private: everything stays on your device." },
+  "actionTitle": { "message": "Open Record Manager" }
+}
