@@ -13,7 +13,7 @@ The design follows Apple's **Liquid Glass**: translucent, refractive surfaces wi
 - **Shortcut**: `Alt + Shift + R` opens the panel.
 - **Categories** with a fixed color palette, filter chips and a category picker.
 - **Search** across record text and category names; sort by date or alphabetically.
-- **Click to copy**, with confirmation (and an error message if the clipboard is unavailable).
+- **Clear feedback**: every insert or copy is confirmed, and failures (no field, blocked page, clipboard unavailable) are explained.
 - **Edit** in a bottom sheet; **delete with undo** (several deletions can be undone together).
 - **Export / import** a JSON backup. Import merges data and never overwrites existing records.
 - **Languages**: Русский, Қазақша, English.
