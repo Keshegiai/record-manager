@@ -62,7 +62,7 @@ test('migrateLegacy converts v1 data without losing records', () => {
   assert.equal(state.records[0].categoryId, work);
   assert.equal(state.records[0].id, '1700000000001');
   assert.equal(state.records[1].categoryId, state.categories[1].id);
-  assert.deepEqual(state.settings, { theme: 'light', lang: 'kk', sortBy: 'alpha-asc' });
+  assert.deepEqual(state.settings, { theme: 'light', lang: 'kk', sortBy: 'alpha-asc', clickAction: 'insert', glass: true });
 });
 
 test('migrateLegacy handles string categories and an empty store', () => {
@@ -83,7 +83,7 @@ test('normalizeState repairs broken data', () => {
       { id: 'r1', text: 'dup id', categoryId: 'a' },
       { id: 'r2', text: null },
     ],
-    settings: { theme: 'neon', lang: 'fr', sortBy: 'random' },
+    settings: { theme: 'neon', lang: 'fr', sortBy: 'random', clickAction: 'eval', glass: 'yes' },
   }, opts);
   assert.equal(state.categories.length, 2);
   assert.notEqual(state.categories[1].id, 'a');
@@ -91,7 +91,7 @@ test('normalizeState repairs broken data', () => {
   assert.equal(state.records[0].categoryId, 'a');
   assert.notEqual(state.records[1].id, 'r1');
   assert.equal(typeof state.records[0].createdAt, 'number');
-  assert.deepEqual(state.settings, { theme: 'system', lang: 'ru', sortBy: 'date-desc' });
+  assert.deepEqual(state.settings, { theme: 'system', lang: 'ru', sortBy: 'date-desc', clickAction: 'insert', glass: true });
 });
 
 test('parseImport rejects malformed input', () => {

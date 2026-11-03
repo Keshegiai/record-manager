@@ -1,18 +1,20 @@
-// Side panel UI.
+// Side panel / pop-out window UI.
 //
 // Security rules followed throughout this file:
 //  * No innerHTML / outerHTML / insertAdjacentHTML — user data is only ever set via textContent.
-//  * No inline styles — colors are applied with whitelisted CSS classes (see COLORS).
+//  * Colors are applied with whitelisted CSS classes (see COLORS), never from data.
 //  * All stored or imported data goes through schema.js before it is used.
+//  * Host access for inserting is optional and requested only after an explicit click.
 
 import {
-  COLORS, LIMITS, SORTS, ImportError, buildExport, defaultLang, filterRecords, mergeImport,
-  newId, parseImport, sanitizeName, sanitizeText, sortRecords,
+  CLICK_ACTIONS, COLORS, LIMITS, LANGS, SORTS, THEMES, ImportError, buildExport, defaultLang,
+  filterRecords, mergeImport, newId, parseImport, sanitizeName, sanitizeText, sortRecords,
 } from './schema.js';
 import {
   colorName, defaultCategoryName, formatCount, formatDate, locale, setLang, t,
 } from './i18n.js';
 import { loadState, onExternalChange, saveState } from './storage.js';
+import { HOST_ACCESS, hasHostAccess, insertIntoActiveTab } from './inserter.js';
 
 // ---------------------------------------------------------------------------
 // DOM helpers
@@ -29,7 +31,6 @@ function h(tag, props = {}, children = []) {
     if (value === undefined || value === null || value === false) continue;
     if (key === 'class') node.className = value;
     else if (key === 'text') node.textContent = value;
-    else if (key === 'on') for (const [ev, fn] of Object.entries(value)) node.addEventListener(ev, fn);
     else if (key.startsWith('aria-') || key.startsWith('data-') || key === 'role') node.setAttribute(key, String(value));
     else if (ALLOWED_PROPS.has(key)) node[key] = value;
     else throw new Error(`h(): property "${key}" is not allowed`);
@@ -48,7 +49,6 @@ function icon(name) {
   return svg;
 }
 
-/** Applies one of the whitelisted color classes (c-blue, c-green, ...) to an element. */
 function setColor(node, color) {
   for (const c of COLORS) node.classList.remove(`c-${c}`);
   node.classList.add(`c-${COLORS.includes(color) ? color : 'gray'}`);
@@ -56,6 +56,8 @@ function setColor(node, color) {
 
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
 const modKey = (e) => (isMac ? e.metaKey : e.ctrlKey);
+const WINDOW_MODE = document.documentElement.dataset.mode === 'window';
+const darkQuery = matchMedia('(prefers-color-scheme: dark)');
 
 // ---------------------------------------------------------------------------
 // State
@@ -68,34 +70,27 @@ const ui = {
   composerCategory: null,
   newColor: COLORS[0],
   editingId: null,
-  undo: { items: [], timer: null },
+  snack: { kind: null, items: [], onAction: null, timer: null },
+  lastNormalWindowId: null,
+  firstRender: true,
 };
 
-const el = {
-  mainView: $('mainView'), settingsView: $('settingsView'),
-  settingsBtn: $('settingsBtn'), backBtn: $('backBtn'),
-  recordCount: $('recordCount'),
-  toolbar: $('toolbar'),
-  searchInput: $('searchInput'), clearSearchBtn: $('clearSearchBtn'),
-  sortBtn: $('sortBtn'), sortMenu: $('sortMenu'),
-  filters: $('filters'),
-  composerInput: $('composerInput'), composerCategory: $('composerCategory'), composerDot: $('composerDot'),
-  charCount: $('charCount'), saveBtn: $('saveBtn'),
-  recordList: $('recordList'), emptyState: $('emptyState'), emptyTitle: $('emptyTitle'), emptyDesc: $('emptyDesc'),
-  themeControl: $('themeControl'), langControl: $('langControl'),
-  categoryList: $('categoryList'), newCategoryInput: $('newCategoryInput'), addCategoryBtn: $('addCategoryBtn'),
-  swatches: $('swatches'),
-  exportBtn: $('exportBtn'), importBtn: $('importBtn'), importFile: $('importFile'),
-  versionLabel: $('versionLabel'),
-  editDialog: $('editDialog'), editCancel: $('editCancel'), editDone: $('editDone'),
-  editCategory: $('editCategory'), editDot: $('editDot'), editInput: $('editInput'), editCount: $('editCount'),
-  confirmDialog: $('confirmDialog'), confirmTitle: $('confirmTitle'), confirmMessage: $('confirmMessage'),
-  confirmCancel: $('confirmCancel'), confirmOk: $('confirmOk'),
-  toast: $('toast'), toastText: $('toastText'),
-  undoBar: $('undoBar'), undoText: $('undoText'), undoBtn: $('undoBtn'),
-};
+const el = {};
+for (const id of [
+  'mainView', 'settingsView', 'settingsBtn', 'backBtn', 'windowBtn', 'windowBtn2', 'dockBtn',
+  'recordCount', 'toolbar', 'searchInput', 'clearSearchBtn', 'sortBtn', 'sortMenu', 'filters',
+  'composerInput', 'composerCategory', 'composerDot', 'charCount', 'saveBtn',
+  'recordList', 'emptyState', 'emptyTitle', 'emptyDesc',
+  'themeControl', 'glassSwitch', 'clickControl', 'langControl', 'accessStatus', 'accessBtn',
+  'categoryList', 'newCategoryInput', 'addCategoryBtn', 'swatches',
+  'exportBtn', 'importBtn', 'importFile', 'versionLabel',
+  'editDialog', 'editCancel', 'editDone', 'editCategory', 'editDot', 'editInput', 'editCount',
+  'confirmDialog', 'confirmTitle', 'confirmMessage', 'confirmCancel', 'confirmOk',
+  'toast', 'toastText', 'snackbar', 'snackText', 'snackBtn',
+]) el[id] = $(id);
 
 const categoryById = (id) => data.categories.find((c) => c.id === id);
+const recordById = (id) => data.records.find((r) => r.id === id);
 
 async function commit() {
   try {
@@ -107,7 +102,7 @@ async function commit() {
 }
 
 // ---------------------------------------------------------------------------
-// Feedback: toast and undo bar
+// Feedback: toast and snackbar
 // ---------------------------------------------------------------------------
 
 let toastTimer = null;
@@ -117,34 +112,42 @@ function toast(message, ok = true) {
   el.toast.classList.toggle('error', !ok);
   el.toast.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.toast.classList.remove('show'), 1800);
+  toastTimer = setTimeout(() => el.toast.classList.remove('show'), 2000);
 }
 
-function showUndo() {
-  const n = ui.undo.items.length;
-  el.undoText.textContent = n === 1 ? t('deletedOne') : t('deletedMany', { n });
-  el.undoBar.hidden = false;
+/** A bar with one action button: used for "Undo" and for "Allow inserting". */
+function showSnack({ kind, text, action, onAction, timeout = 6000 }) {
+  if (ui.snack.kind !== kind) ui.snack.items = [];
+  ui.snack.kind = kind;
+  ui.snack.onAction = onAction;
+  el.snackText.textContent = text;
+  el.snackBtn.textContent = action;
+  el.snackbar.hidden = false;
   document.body.classList.add('has-snackbar');
-  clearTimeout(ui.undo.timer);
-  ui.undo.timer = setTimeout(hideUndo, 6000);
+  clearTimeout(ui.snack.timer);
+  ui.snack.timer = setTimeout(hideSnack, timeout);
 }
 
-function hideUndo() {
-  clearTimeout(ui.undo.timer);
-  ui.undo.items = [];
-  el.undoBar.hidden = true;
+function hideSnack() {
+  clearTimeout(ui.snack.timer);
+  ui.snack = { kind: null, items: [], onAction: null, timer: null };
+  el.snackbar.hidden = true;
   document.body.classList.remove('has-snackbar');
 }
 
 // ---------------------------------------------------------------------------
-// Rendering
+// Appearance
 // ---------------------------------------------------------------------------
 
-function applyTheme() {
-  const theme = data.settings.theme;
-  if (theme === 'system') delete document.documentElement.dataset.theme;
-  else document.documentElement.dataset.theme = theme;
-  try { localStorage.setItem('rm-theme', theme); } catch { /* ignore */ }
+function applyAppearance() {
+  const { theme, glass } = data.settings;
+  const dark = theme === 'dark' || (theme === 'system' && darkQuery.matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  document.documentElement.dataset.glass = glass ? 'on' : 'off';
+  try {
+    localStorage.setItem('rm-theme', theme);
+    localStorage.setItem('rm-glass', glass ? 'on' : 'off');
+  } catch { /* ignore */ }
 }
 
 function applyTexts() {
@@ -159,8 +162,12 @@ function applyTexts() {
   el.versionLabel.textContent = t('version', { v: chrome.runtime.getManifest().version });
 }
 
+// ---------------------------------------------------------------------------
+// Rendering
+// ---------------------------------------------------------------------------
+
 function renderAll() {
-  renderHeader();
+  el.recordCount.textContent = formatCount(data.records.length);
   renderFilters();
   renderCategorySelect(el.composerCategory, el.composerDot, ui.composerCategory);
   renderList();
@@ -168,23 +175,14 @@ function renderAll() {
   renderSettings();
 }
 
-function renderHeader() {
-  el.recordCount.textContent = formatCount(data.records.length);
-}
-
 function renderFilters() {
   const chip = (id, label, color) => {
-    const pressed = ui.filter === id;
     const dot = color ? h('span', { class: 'dot' }) : null;
     if (dot) setColor(dot, color);
-    return h('button', {
-      class: 'chip', type: 'button', 'aria-pressed': pressed, 'data-id': id,
-    }, [dot, h('span', { text: label })]);
+    return h('button', { class: 'chip', type: 'button', 'aria-pressed': ui.filter === id, 'data-id': id },
+      [dot, h('span', { text: label })]);
   };
-  el.filters.replaceChildren(
-    chip('all', t('all')),
-    ...data.categories.map((c) => chip(c.id, c.name, c.color)),
-  );
+  el.filters.replaceChildren(chip('all', t('all')), ...data.categories.map((c) => chip(c.id, c.name, c.color)));
 }
 
 function renderCategorySelect(select, dot, selectedId) {
@@ -201,36 +199,45 @@ function renderList() {
   );
 
   if (!visible.length) {
-    const searching = ui.query.trim() || ui.filter !== 'all';
-    el.emptyTitle.textContent = t(searching && data.records.length ? 'noResultsTitle' : 'emptyTitle');
-    el.emptyDesc.textContent = t(searching && data.records.length ? 'noResultsDesc' : 'emptyDesc');
+    const noResults = data.records.length && (ui.query.trim() || ui.filter !== 'all');
+    el.emptyTitle.textContent = t(noResults ? 'noResultsTitle' : 'emptyTitle');
+    el.emptyDesc.textContent = t(noResults ? 'noResultsDesc' : 'emptyDesc');
   }
   el.emptyState.hidden = visible.length > 0;
   el.recordList.hidden = visible.length === 0;
 
   const now = new Date();
-  el.recordList.replaceChildren(...visible.map((r) => renderRow(r, now)));
+  el.recordList.classList.toggle('intro', ui.firstRender);
+  el.recordList.replaceChildren(...visible.map((r) => renderCard(r, now)));
+  if (ui.firstRender && visible.length) {
+    ui.firstRender = false;
+    setTimeout(() => el.recordList.classList.remove('intro'), 900);
+  }
 }
 
-function renderRow(record, now) {
+function renderCard(record, now) {
   const cat = categoryById(record.categoryId);
   const dot = h('span', { class: 'dot' });
   setColor(dot, cat?.color);
   const date = new Date(record.createdAt);
+  const insertFirst = data.settings.clickAction === 'insert';
+  const secondary = insertFirst ? { icon: 'copy', label: t('copy') } : { icon: 'insert', label: t('insert') };
 
-  return h('li', { class: 'row', 'data-id': record.id }, [
-    h('button', { class: 'row-main', type: 'button', 'data-action': 'copy', title: t('copy') }, [
-      h('span', { class: 'row-text', text: record.text }),
-      h('span', { class: 'row-meta' }, [
-        dot,
-        h('span', { class: 'row-category', text: cat?.name ?? '' }),
-        h('span', { 'aria-hidden': 'true', text: '·' }),
-        h('time', { dateTime: date.toISOString(), title: date.toLocaleString(locale()), text: formatDate(record.createdAt, now) }),
+  return h('li', { class: 'record glass', 'data-id': record.id }, [
+    h('button', {
+      class: 'record-main', type: 'button', 'data-action': 'primary', title: insertFirst ? t('insert') : t('copy'),
+    }, h('span', { class: 'record-text', text: record.text })),
+    h('div', { class: 'record-footer' }, [
+      h('span', { class: 'tag' }, [dot, h('span', { text: cat?.name ?? '' })]),
+      h('time', {
+        class: 'record-date', dateTime: date.toISOString(), title: date.toLocaleString(locale()),
+        text: formatDate(record.createdAt, now),
+      }),
+      h('div', { class: 'record-actions' }, [
+        h('button', { class: 'action primary', type: 'button', 'data-action': 'secondary', 'aria-label': secondary.label, title: secondary.label }, icon(secondary.icon)),
+        h('button', { class: 'action', type: 'button', 'data-action': 'edit', 'aria-label': t('edit'), title: t('edit') }, icon('pencil')),
+        h('button', { class: 'action danger', type: 'button', 'data-action': 'delete', 'aria-label': t('delete'), title: t('delete') }, icon('trash')),
       ]),
-    ]),
-    h('div', { class: 'row-actions' }, [
-      h('button', { class: 'action', type: 'button', 'data-action': 'edit', 'aria-label': t('edit'), title: t('edit') }, icon('pencil')),
-      h('button', { class: 'action danger', type: 'button', 'data-action': 'delete', 'aria-label': t('delete'), title: t('delete') }, icon('trash')),
     ]),
   ]);
 }
@@ -252,6 +259,8 @@ function renderSegmented(group, value) {
 function renderSettings() {
   renderSegmented(el.themeControl, data.settings.theme);
   renderSegmented(el.langControl, data.settings.lang);
+  renderSegmented(el.clickControl, data.settings.clickAction);
+  el.glassSwitch.setAttribute('aria-checked', String(data.settings.glass));
 
   el.categoryList.replaceChildren(...data.categories.map((c) => {
     const dot = h('span', { class: 'dot' });
@@ -263,8 +272,7 @@ function renderSettings() {
       h('span', { class: 'cell-detail', text: String(count) }),
       h('button', {
         class: 'action danger', type: 'button', 'data-action': 'delete-category',
-        'aria-label': `${t('delete')}: ${c.name}`, title: t('delete'),
-        disabled: data.categories.length <= 1,
+        'aria-label': `${t('delete')}: ${c.name}`, title: t('delete'), disabled: data.categories.length <= 1,
       }, icon('trash')),
     ]);
   }));
@@ -279,13 +287,22 @@ function renderSettings() {
     return btn;
   }));
   updateAddCategoryState();
+  renderAccess();
+}
+
+async function renderAccess() {
+  const granted = await hasHostAccess().catch(() => false);
+  el.accessStatus.textContent = t(granted ? 'siteAccessOn' : 'siteAccessOff');
+  el.accessBtn.textContent = t(granted ? 'revoke' : 'grant');
+  el.accessBtn.classList.toggle('danger', granted);
+  el.accessBtn.dataset.granted = String(granted);
 }
 
 function updateComposerState() {
   const len = el.composerInput.value.length;
-  el.charCount.textContent = len > LIMITS.text * 0.8 ? `${len} / ${LIMITS.text}` : len ? String(len) : '';
+  el.charCount.textContent = len > LIMITS.text * 0.8 ? `${len} / ${LIMITS.text}` : '';
   el.saveBtn.disabled = !el.composerInput.value.trim();
-  autoGrow(el.composerInput, 260);
+  autoGrow(el.composerInput, 180);
 }
 
 function updateAddCategoryState() {
@@ -297,8 +314,12 @@ function autoGrow(textarea, max) {
   textarea.style.height = `${Math.min(textarea.scrollHeight, max)}px`;
 }
 
+function updateToolbarEdge() {
+  el.toolbar.classList.toggle('stuck', !el.mainView.hidden && window.scrollY > 4);
+}
+
 // ---------------------------------------------------------------------------
-// Actions
+// Record actions
 // ---------------------------------------------------------------------------
 
 function addRecord() {
@@ -318,46 +339,112 @@ function addRecord() {
   toast(t('saved'));
 }
 
-async function copyRecord(id, rowNode) {
-  const record = data.records.find((r) => r.id === id);
-  if (!record) return;
+function flashCard(id) {
+  const card = el.recordList.querySelector(`.record[data-id="${CSS.escape(id)}"]`);
+  if (!card) return;
+  card.classList.remove('flash');
+  void card.offsetWidth; // restart the animation
+  card.classList.add('flash');
+}
+
+async function writeClipboard(text) {
   try {
-    await navigator.clipboard.writeText(record.text);
-    toast(t('copied'));
-    rowNode?.classList.remove('flash');
-    void rowNode?.offsetWidth; // restart the animation
-    rowNode?.classList.add('flash');
+    await navigator.clipboard.writeText(text);
+    return true;
   } catch (err) {
     console.error('Record Manager: clipboard write failed', err);
-    toast(t('copyFailed'), false);
+    return false;
   }
+}
+
+async function copyRecord(id) {
+  const record = recordById(id);
+  if (!record) return;
+  const ok = await writeClipboard(record.text);
+  toast(t(ok ? 'copied' : 'copyFailed'), ok);
+  if (ok) flashCard(id);
+}
+
+async function insertRecord(id) {
+  const record = recordById(id);
+  if (!record) return;
+  const result = await insertIntoActiveTab(record.text);
+  if (result === 'inserted') {
+    toast(t('inserted'));
+    flashCard(id);
+    return;
+  }
+
+  // Fall back to the clipboard so the user can always paste.
+  const copied = await writeClipboard(record.text);
+  if (!copied) {
+    toast(t('copyFailed'), false);
+    return;
+  }
+  flashCard(id);
+  if (result === 'no-field') {
+    toast(t('noFieldCopied'));
+  } else if (result === 'no-access' && !(await hasHostAccess().catch(() => true))) {
+    showSnack({
+      kind: 'access', text: t('needAccess'), action: t('allow'), timeout: 9000,
+      onAction: () => requestAccess(record.text),
+    });
+  } else {
+    toast(t('restrictedCopied'));
+  }
+}
+
+/** Must be called directly from a click handler: the permission prompt needs a user gesture. */
+function requestAccess(retryText) {
+  chrome.permissions.request(HOST_ACCESS).then(async (granted) => {
+    renderAccess();
+    if (!granted || !retryText) return;
+    const result = await insertIntoActiveTab(retryText);
+    toast(t(result === 'inserted' ? 'inserted' : 'noFieldCopied'));
+  }).catch((err) => console.error('Record Manager: permission request failed', err));
+}
+
+function primaryAction(id) {
+  if (data.settings.clickAction === 'insert') insertRecord(id);
+  else copyRecord(id);
+}
+
+function secondaryAction(id) {
+  if (data.settings.clickAction === 'insert') copyRecord(id);
+  else insertRecord(id);
 }
 
 function deleteRecord(id) {
   const index = data.records.findIndex((r) => r.id === id);
   if (index < 0) return;
   const [record] = data.records.splice(index, 1);
-  ui.undo.items.push({ record, index });
+  const items = ui.snack.kind === 'undo' ? ui.snack.items : [];
+  items.push({ record, index });
   renderAll();
   commit();
-  showUndo();
+  showSnack({
+    kind: 'undo',
+    text: items.length === 1 ? t('deletedOne') : t('deletedMany', { n: items.length }),
+    action: t('undo'),
+    onAction: undoDelete,
+  });
+  ui.snack.items = items;
 }
 
 function undoDelete() {
-  // Restore in reverse order so original positions are preserved.
-  const items = ui.undo.items.slice().reverse();
+  const items = ui.snack.items.slice().reverse();
   for (const { record, index } of items) {
-    if (data.records.some((r) => r.id === record.id)) continue;
+    if (recordById(record.id)) continue;
     if (!categoryById(record.categoryId)) record.categoryId = data.categories[0].id;
     data.records.splice(Math.min(index, data.records.length), 0, record);
   }
-  hideUndo();
+  hideSnack();
   renderAll();
   commit();
 }
 
 function openEditor(id) {
-  const record = data.records.find((r) => r.id === id);
+  const record = recordById(id);
   if (!record) return;
   ui.editingId = id;
   el.editInput.value = record.text;
@@ -369,13 +456,12 @@ function openEditor(id) {
 }
 
 function updateEditCount() {
-  const len = el.editInput.value.length;
-  el.editCount.textContent = `${len} / ${LIMITS.text}`;
+  el.editCount.textContent = `${el.editInput.value.length} / ${LIMITS.text}`;
   el.editDone.disabled = !el.editInput.value.trim();
 }
 
 function saveEditor() {
-  const record = data.records.find((r) => r.id === ui.editingId);
+  const record = recordById(ui.editingId);
   const text = sanitizeText(el.editInput.value);
   if (!record || !text) return;
   record.text = text;
@@ -385,6 +471,10 @@ function saveEditor() {
   renderAll();
   commit();
 }
+
+// ---------------------------------------------------------------------------
+// Categories, data, settings
+// ---------------------------------------------------------------------------
 
 function addCategory() {
   const name = sanitizeName(el.newCategoryInput.value);
@@ -468,9 +558,13 @@ async function importData(file) {
   }
 }
 
+const SETTING_VALUES = { theme: THEMES, lang: LANGS, sortBy: SORTS, clickAction: CLICK_ACTIONS };
+
 function setSetting(key, value) {
+  if (key === 'glass') value = Boolean(value);
+  else if (!SETTING_VALUES[key]?.includes(value)) return;
   data.settings[key] = value;
-  if (key === 'theme') applyTheme();
+  if (key === 'theme' || key === 'glass') applyAppearance();
   if (key === 'lang') {
     setLang(value);
     applyTexts();
@@ -479,17 +573,24 @@ function setSetting(key, value) {
   commit();
 }
 
-function updateToolbarHairline() {
-  const stuck = !el.mainView.hidden && el.toolbar.getBoundingClientRect().top <= 0 && window.scrollY > 0;
-  el.toolbar.classList.toggle('stuck', stuck);
+function toggleAccess() {
+  if (el.accessBtn.dataset.granted === 'true') {
+    chrome.permissions.remove(HOST_ACCESS).then(renderAccess).catch(renderAccess);
+  } else {
+    requestAccess(null);
+  }
 }
+
+// ---------------------------------------------------------------------------
+// Views and windows
+// ---------------------------------------------------------------------------
 
 function showView(name) {
   const settings = name === 'settings';
   el.mainView.hidden = settings;
   el.settingsView.hidden = !settings;
   window.scrollTo(0, 0);
-  updateToolbarHairline();
+  updateToolbarEdge();
   (settings ? el.backBtn : el.settingsBtn).focus();
 }
 
@@ -497,6 +598,75 @@ function toggleSortMenu(open = el.sortMenu.hidden) {
   el.sortMenu.hidden = !open;
   el.sortBtn.setAttribute('aria-expanded', String(open));
   if (open) el.sortMenu.querySelector('[aria-checked="true"]')?.focus();
+}
+
+function readBounds(raw) {
+  const ok = (v, min, max) => Number.isInteger(v) && v >= min && v <= max;
+  if (!raw || typeof raw !== 'object') return {};
+  const b = {};
+  if (ok(raw.width, 300, 4000)) b.width = raw.width;
+  if (ok(raw.height, 400, 4000)) b.height = raw.height;
+  if (ok(raw.left, -4000, 8000)) b.left = raw.left;
+  if (ok(raw.top, -4000, 8000)) b.top = raw.top;
+  return b;
+}
+
+async function openInWindow() {
+  try {
+    const { popupWindowId } = await chrome.storage.session.get('popupWindowId');
+    if (Number.isInteger(popupWindowId)) {
+      try {
+        await chrome.windows.update(popupWindowId, { focused: true });
+        window.close();
+        return;
+      } catch { /* the window is gone */ }
+    }
+    const { windowBounds } = await chrome.storage.local.get('windowBounds');
+    const bounds = { width: 440, height: 760, ...readBounds(windowBounds) };
+    const win = await chrome.windows.create({
+      url: chrome.runtime.getURL('sidepanel.html?mode=window'), type: 'popup', focused: true, ...bounds,
+    });
+    await chrome.storage.session.set({ popupWindowId: win.id });
+    window.close(); // closes the side panel
+  } catch (err) {
+    console.error('Record Manager: could not open window', err);
+  }
+}
+
+function dockToPanel() {
+  // Called synchronously from the click so the browser accepts it as a user gesture.
+  if (!chrome.sidePanel?.open || ui.lastNormalWindowId === null) return;
+  chrome.sidePanel.open({ windowId: ui.lastNormalWindowId })
+    .then(() => window.close())
+    .catch((err) => console.error('Record Manager: could not open side panel', err));
+}
+
+function setupWindowMode() {
+  el.windowBtn.hidden = WINDOW_MODE;
+  el.windowBtn2.closest('.group').hidden = WINDOW_MODE;
+  el.dockBtn.hidden = !WINDOW_MODE || !chrome.sidePanel?.open;
+  if (!WINDOW_MODE) return;
+
+  const remember = async (id) => {
+    try {
+      const win = await chrome.windows.get(id);
+      if (win.type === 'normal') ui.lastNormalWindowId = id;
+    } catch { /* ignore */ }
+  };
+  chrome.windows.getLastFocused({ windowTypes: ['normal'] }).then((w) => { ui.lastNormalWindowId = w.id; }).catch(() => {});
+  chrome.windows.onFocusChanged.addListener((id) => { if (id !== chrome.windows.WINDOW_ID_NONE) remember(id); });
+
+  let timer;
+  const saveBounds = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      chrome.storage.local.set({
+        windowBounds: { width: window.outerWidth, height: window.outerHeight, left: window.screenX, top: window.screenY },
+      });
+    }, 400);
+  };
+  window.addEventListener('resize', saveBounds);
+  window.addEventListener('pagehide', saveBounds);
 }
 
 /** Arrow-key navigation inside a role=radiogroup, as in native segmented controls. */
@@ -507,7 +677,7 @@ function radioKeys(group, onPick) {
     const i = items.indexOf(document.activeElement);
     if (i < 0) return;
     e.preventDefault();
-    let next = i;
+    let next;
     if (e.key === 'Home') next = 0;
     else if (e.key === 'End') next = items.length - 1;
     else next = (i + (e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 1) + items.length) % items.length;
@@ -523,6 +693,9 @@ function radioKeys(group, onPick) {
 function bindEvents() {
   el.settingsBtn.addEventListener('click', () => showView('settings'));
   el.backBtn.addEventListener('click', () => showView('main'));
+  el.windowBtn.addEventListener('click', openInWindow);
+  el.windowBtn2.addEventListener('click', openInWindow);
+  el.dockBtn.addEventListener('click', dockToPanel);
 
   // Search
   let searchTimer;
@@ -555,7 +728,7 @@ function bindEvents() {
   });
   el.sortMenu.addEventListener('click', (e) => {
     const item = e.target.closest('[data-sort]');
-    if (!item || !SORTS.includes(item.dataset.sort)) return;
+    if (!item) return;
     toggleSortMenu(false);
     el.sortBtn.focus();
     setSetting('sortBy', item.dataset.sort);
@@ -593,23 +766,30 @@ function bindEvents() {
   });
   el.saveBtn.addEventListener('click', addRecord);
   el.composerInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && modKey(e)) {
+    if ((e.key === 'Enter' || e.key.toLowerCase() === 's') && modKey(e)) {
       e.preventDefault();
       addRecord();
     }
   });
 
-  // List (event delegation)
+  // Record grid (event delegation)
   el.recordList.addEventListener('click', (e) => {
     const button = e.target.closest('[data-action]');
-    const row = e.target.closest('.row');
-    if (!button || !row) return;
-    const id = row.dataset.id;
-    if (button.dataset.action === 'copy') copyRecord(id, row);
-    else if (button.dataset.action === 'edit') openEditor(id);
-    else if (button.dataset.action === 'delete') deleteRecord(id);
+    const card = e.target.closest('.record');
+    if (!button || !card) return;
+    const id = card.dataset.id;
+    const action = button.dataset.action;
+    if (action === 'primary') primaryAction(id);
+    else if (action === 'secondary') secondaryAction(id);
+    else if (action === 'edit') openEditor(id);
+    else if (action === 'delete') deleteRecord(id);
   });
-  el.undoBtn.addEventListener('click', undoDelete);
+
+  el.snackBtn.addEventListener('click', () => {
+    const action = ui.snack.onAction;
+    if (ui.snack.kind !== 'undo') hideSnack();
+    action?.();
+  });
 
   // Editor sheet
   el.editInput.addEventListener('input', updateEditCount);
@@ -617,14 +797,12 @@ function bindEvents() {
   el.editCancel.addEventListener('click', () => el.editDialog.close());
   el.editDone.addEventListener('click', saveEditor);
   el.editDialog.addEventListener('keydown', (e) => {
-    if ((e.key === 'Enter' || e.key === 's') && modKey(e)) {
+    if ((e.key === 'Enter' || e.key.toLowerCase() === 's') && modKey(e)) {
       e.preventDefault();
       saveEditor();
     }
   });
-  el.editDialog.addEventListener('click', (e) => {
-    if (e.target === el.editDialog) el.editDialog.close(); // backdrop click
-  });
+  el.editDialog.addEventListener('click', (e) => { if (e.target === el.editDialog) el.editDialog.close(); });
   el.editDialog.addEventListener('close', () => { ui.editingId = null; });
 
   // Confirm alert
@@ -633,12 +811,18 @@ function bindEvents() {
   el.confirmDialog.addEventListener('cancel', () => { el.confirmDialog.returnValue = 'cancel'; });
 
   // Settings
-  const pickTheme = (btn) => btn?.dataset.value && setSetting('theme', btn.dataset.value);
-  const pickLang = (btn) => btn?.dataset.value && setSetting('lang', btn.dataset.value);
-  el.themeControl.addEventListener('click', (e) => pickTheme(e.target.closest('[role="radio"]')));
-  el.langControl.addEventListener('click', (e) => pickLang(e.target.closest('[role="radio"]')));
-  radioKeys(el.themeControl, pickTheme);
-  radioKeys(el.langControl, pickLang);
+  const segmented = (group, key) => {
+    const pick = (btn) => btn?.dataset.value && setSetting(key, btn.dataset.value);
+    group.addEventListener('click', (e) => pick(e.target.closest('[role="radio"]')));
+    radioKeys(group, pick);
+  };
+  segmented(el.themeControl, 'theme');
+  segmented(el.langControl, 'lang');
+  segmented(el.clickControl, 'clickAction');
+  el.glassSwitch.addEventListener('click', () => setSetting('glass', !data.settings.glass));
+  el.accessBtn.addEventListener('click', toggleAccess);
+  chrome.permissions.onAdded.addListener(renderAccess);
+  chrome.permissions.onRemoved.addListener(renderAccess);
 
   const pickColor = (btn) => {
     if (!btn || !COLORS.includes(btn.dataset.color)) return;
@@ -675,18 +859,15 @@ function bindEvents() {
       e.preventDefault();
       el.searchInput.focus();
       el.searchInput.select();
-    } else if (modKey(e) && e.key.toLowerCase() === 's' && document.activeElement === el.composerInput) {
-      e.preventDefault();
-      addRecord();
     } else if (e.key === 'Escape' && !el.settingsView.hidden) {
       showView('main');
     }
   });
 
-  // Hairline under the toolbar once it sticks to the top.
-  window.addEventListener('scroll', updateToolbarHairline, { passive: true });
+  window.addEventListener('scroll', updateToolbarEdge, { passive: true });
+  darkQuery.addEventListener('change', applyAppearance);
 
-  // Keep several open panels (one per window) in sync.
+  // Keep several open panels (one per window, plus the pop-out) in sync.
   onExternalChange(async () => {
     const fresh = await loadState(opts());
     if (JSON.stringify(fresh) === JSON.stringify(data)) return;
@@ -694,7 +875,7 @@ function bindEvents() {
     data = fresh;
     if (!categoryById(ui.composerCategory)) ui.composerCategory = data.categories[0].id;
     if (ui.filter !== 'all' && !categoryById(ui.filter)) ui.filter = 'all';
-    applyTheme();
+    applyAppearance();
     if (langChanged) {
       setLang(data.settings.lang);
       applyTexts();
@@ -717,8 +898,9 @@ async function init() {
   ui.composerCategory = data.categories[0].id;
   ui.newColor = COLORS[data.categories.length % COLORS.length];
   setLang(data.settings.lang);
-  applyTheme();
+  applyAppearance();
   applyTexts();
+  setupWindowMode();
   bindEvents();
   renderAll();
   updateComposerState();
