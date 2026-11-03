@@ -23,6 +23,7 @@ export const COLORS = Object.freeze([
 export const THEMES = Object.freeze(['system', 'light', 'dark']);
 export const LANGS = Object.freeze(['ru', 'kk', 'en']);
 export const SORTS = Object.freeze(['date-desc', 'date-asc', 'alpha-asc', 'alpha-desc']);
+export const CLICK_ACTIONS = Object.freeze(['insert', 'copy']);
 
 export const STORAGE_KEYS = Object.freeze(['schemaVersion', 'categories', 'records', 'settings']);
 export const LEGACY_KEYS = Object.freeze(['prompts', 'categories', 'theme', 'lang', 'sortBy']);
@@ -192,6 +193,8 @@ function normalizeSettings(raw, opts) {
     theme: pick(THEMES, s.theme, 'system'),
     lang: pick(LANGS, s.lang, opts.lang ?? 'en'),
     sortBy: pick(SORTS, s.sortBy, 'date-desc'),
+    clickAction: pick(CLICK_ACTIONS, s.clickAction, 'insert'),
+    glass: typeof s.glass === 'boolean' ? s.glass : true,
   };
 }
 

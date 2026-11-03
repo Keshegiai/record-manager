@@ -12,6 +12,13 @@
 </head>
 <body>
   <svg class="sprite" aria-hidden="true" focusable="false">
+    <!-- Liquid Glass refraction: displaces the backdrop near the edges of an element. -->
+    <filter id="lg-refract" x="0" y="0" width="1" height="1" primitiveUnits="objectBoundingBox"
+            color-interpolation-filters="sRGB">
+      <feImage href="img/lens.png" x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="lens"/>
+      <feDisplacementMap in="SourceGraphic" in2="lens" scale="0.07" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></symbol>
     <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
     <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></symbol>
@@ -26,24 +33,44 @@
     <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 15V3M8 7l4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></symbol>
     <symbol id="i-tray" viewBox="0 0 24 24"><path d="M12 3v12M8 11l4 4 4-4M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></symbol>
     <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="i-insert" viewBox="0 0 24 24"><path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/><path d="M12 3v11M8 10l4 4 4-4"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+    <symbol id="i-window" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="3"/><path d="M3 9h18"/></symbol>
+    <symbol id="i-sidebar" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="3"/><path d="M14.5 4.5v15"/></symbol>
+    <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></symbol>
   </svg>
+
+  <!-- Ambient wallpaper that the glass refracts. -->
+  <div class="ambient" aria-hidden="true">
+    <span class="orb orb-1"></span>
+    <span class="orb orb-2"></span>
+    <span class="orb orb-3"></span>
+  </div>
 
   <!-- ============================ Records ============================ -->
   <main id="mainView" class="view">
-    <header class="nav">
-      <div class="nav-bar">
-        <span></span>
-        <button id="settingsBtn" class="icon-button" type="button" data-i18n-label="settings">
+    <header class="hero">
+      <div class="hero-text">
+        <h1 class="large-title" data-i18n="appTitle">Records</h1>
+        <p id="recordCount" class="subtitle"></p>
+      </div>
+      <div class="hero-actions">
+        <button id="windowBtn" class="glass-button refract" type="button" data-i18n-label="openWindow">
+          <svg class="icon" aria-hidden="true"><use href="#i-window"/></svg>
+        </button>
+        <button id="dockBtn" class="glass-button refract" type="button" data-i18n-label="dockToPanel" hidden>
+          <svg class="icon" aria-hidden="true"><use href="#i-sidebar"/></svg>
+        </button>
+        <button id="settingsBtn" class="glass-button refract" type="button" data-i18n-label="settings">
           <svg class="icon" aria-hidden="true"><use href="#i-gear"/></svg>
         </button>
       </div>
-      <h1 class="large-title" data-i18n="appTitle">Records</h1>
-      <p id="recordCount" class="subtitle"></p>
     </header>
 
     <div id="toolbar" class="toolbar">
       <div class="search-row">
-        <label class="search-field">
+        <label class="search-field glass refract">
           <svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>
           <input id="searchInput" type="text" inputmode="search" autocomplete="off" spellcheck="false"
                  maxlength="200" data-i18n-placeholder="search" data-i18n-label="search">
@@ -52,11 +79,11 @@
           </button>
         </label>
         <div class="menu-anchor">
-          <button id="sortBtn" class="icon-button tinted" type="button" aria-haspopup="menu" aria-expanded="false"
+          <button id="sortBtn" class="glass-button large refract" type="button" aria-haspopup="menu" aria-expanded="false"
                   aria-controls="sortMenu" data-i18n-label="sort">
             <svg class="icon" aria-hidden="true"><use href="#i-sort"/></svg>
           </button>
-          <div id="sortMenu" class="menu" role="menu" hidden>
+          <div id="sortMenu" class="menu glass-strong refract" role="menu" hidden>
             <button type="button" role="menuitemradio" data-sort="date-desc"><span data-i18n="sortNewest"></span><svg class="icon check" aria-hidden="true"><use href="#i-check"/></svg></button>
             <button type="button" role="menuitemradio" data-sort="date-asc"><span data-i18n="sortOldest"></span><svg class="icon check" aria-hidden="true"><use href="#i-check"/></svg></button>
             <button type="button" role="menuitemradio" data-sort="alpha-asc"><span data-i18n="sortAZ"></span><svg class="icon check" aria-hidden="true"><use href="#i-check"/></svg></button>
@@ -67,70 +94,117 @@
       <div id="filters" class="chips" role="group" data-i18n-label="filters"></div>
     </div>
 
-    <section class="card composer">
-      <textarea id="composerInput" rows="3" maxlength="20000" data-i18n-placeholder="composerPlaceholder"
+    <ul id="recordList" class="grid"></ul>
+
+    <div id="emptyState" class="empty glass" hidden>
+      <span class="empty-icon"><svg class="icon" aria-hidden="true"><use href="#i-doc"/></svg></span>
+      <h2 id="emptyTitle"></h2>
+      <p id="emptyDesc"></p>
+    </div>
+
+    <section class="dock glass-strong refract">
+      <textarea id="composerInput" rows="1" maxlength="20000" data-i18n-placeholder="composerPlaceholder"
                 data-i18n-label="composerLabel"></textarea>
-      <div class="composer-bar">
+      <div class="dock-bar">
         <label class="picker">
           <span id="composerDot" class="dot"></span>
           <select id="composerCategory" data-i18n-label="category"></select>
           <svg class="icon chevron" aria-hidden="true"><use href="#i-chevron-down"/></svg>
         </label>
         <span id="charCount" class="counter" aria-hidden="true"></span>
-        <button id="saveBtn" class="button-filled" type="button" data-i18n="save" disabled>Save</button>
+        <button id="saveBtn" class="send-button" type="button" data-i18n-label="send" disabled>
+          <svg class="icon" aria-hidden="true"><use href="#i-arrow-up"/></svg>
+        </button>
       </div>
     </section>
-
-    <ul id="recordList" class="card list"></ul>
-
-    <div id="emptyState" class="empty" hidden>
-      <svg class="icon" aria-hidden="true"><use href="#i-doc"/></svg>
-      <h2 id="emptyTitle"></h2>
-      <p id="emptyDesc"></p>
-    </div>
   </main>
 
   <!-- ============================ Settings ============================ -->
   <main id="settingsView" class="view" hidden>
-    <header class="nav">
-      <div class="nav-bar">
-        <button id="backBtn" class="back-button" type="button">
-          <svg class="icon" aria-hidden="true"><use href="#i-chevron-left"/></svg>
-          <span data-i18n="back">Back</span>
-        </button>
-        <span></span>
-      </div>
+    <header class="hero settings-hero">
+      <button id="backBtn" class="back-button glass refract" type="button">
+        <svg class="icon" aria-hidden="true"><use href="#i-chevron-left"/></svg>
+        <span data-i18n="back">Back</span>
+      </button>
       <h1 class="large-title" data-i18n="settings">Settings</h1>
     </header>
 
     <section class="group">
       <h2 class="group-title" id="appearanceTitle" data-i18n="appearance"></h2>
-      <div id="themeControl" class="segmented" role="radiogroup" aria-labelledby="appearanceTitle">
-        <button type="button" role="radio" data-value="system" data-i18n="themeSystem"></button>
-        <button type="button" role="radio" data-value="light" data-i18n="themeLight"></button>
-        <button type="button" role="radio" data-value="dark" data-i18n="themeDark"></button>
+      <div class="card glass">
+        <div class="card-pad">
+          <div id="themeControl" class="segmented" role="radiogroup" aria-labelledby="appearanceTitle">
+            <button type="button" role="radio" data-value="system" data-i18n="themeSystem"></button>
+            <button type="button" role="radio" data-value="light" data-i18n="themeLight"></button>
+            <button type="button" role="radio" data-value="dark" data-i18n="themeDark"></button>
+          </div>
+        </div>
+        <div class="cell">
+          <span class="cell-label" id="glassLabel" data-i18n="glass"></span>
+          <button id="glassSwitch" class="switch" type="button" role="switch" aria-labelledby="glassLabel"><span></span></button>
+        </div>
       </div>
-      <p class="group-footer" data-i18n="themeFooter"></p>
+      <p class="group-footer" data-i18n="glassFooter"></p>
+    </section>
+
+    <section class="group">
+      <h2 class="group-title" id="behaviorTitle" data-i18n="behavior"></h2>
+      <div class="card glass">
+        <div class="card-pad">
+          <div id="clickControl" class="segmented" role="radiogroup" aria-labelledby="behaviorTitle">
+            <button type="button" role="radio" data-value="insert" data-i18n="clickInsert"></button>
+            <button type="button" role="radio" data-value="copy" data-i18n="clickCopy"></button>
+          </div>
+        </div>
+      </div>
+      <p class="group-footer" data-i18n="clickFooter"></p>
+    </section>
+
+    <section class="group">
+      <h2 class="group-title" data-i18n="siteAccess"></h2>
+      <div class="card glass">
+        <div class="cell">
+          <span class="cell-icon"><svg class="icon" aria-hidden="true"><use href="#i-globe"/></svg></span>
+          <span id="accessStatus" class="cell-label"></span>
+          <button id="accessBtn" class="pill-button" type="button"></button>
+        </div>
+      </div>
+      <p class="group-footer" data-i18n="siteAccessFooter"></p>
+    </section>
+
+    <section class="group">
+      <h2 class="group-title" data-i18n="windowGroup"></h2>
+      <div class="card glass">
+        <button id="windowBtn2" class="cell cell-button" type="button">
+          <svg class="icon" aria-hidden="true"><use href="#i-window"/></svg>
+          <span data-i18n="openWindow"></span>
+        </button>
+      </div>
+      <p class="group-footer" data-i18n="windowFooter"></p>
     </section>
 
     <section class="group">
       <h2 class="group-title" id="languageTitle" data-i18n="language"></h2>
-      <div id="langControl" class="segmented" role="radiogroup" aria-labelledby="languageTitle">
-        <button type="button" role="radio" data-value="ru" lang="ru">Русский</button>
-        <button type="button" role="radio" data-value="kk" lang="kk">Қазақша</button>
-        <button type="button" role="radio" data-value="en" lang="en">English</button>
+      <div class="card glass">
+        <div class="card-pad">
+          <div id="langControl" class="segmented" role="radiogroup" aria-labelledby="languageTitle">
+            <button type="button" role="radio" data-value="ru" lang="ru">Русский</button>
+            <button type="button" role="radio" data-value="kk" lang="kk">Қазақша</button>
+            <button type="button" role="radio" data-value="en" lang="en">English</button>
+          </div>
+        </div>
       </div>
     </section>
 
     <section class="group">
       <h2 class="group-title" data-i18n="categories"></h2>
-      <div class="card">
+      <div class="card glass">
         <ul id="categoryList" class="cells"></ul>
         <div class="add-category">
           <div class="add-row">
             <input id="newCategoryInput" class="text-field" type="text" maxlength="32" autocomplete="off"
                    data-i18n-placeholder="newCategory" data-i18n-label="newCategory">
-            <button id="addCategoryBtn" class="icon-button filled" type="button" data-i18n-label="addCategory" disabled>
+            <button id="addCategoryBtn" class="send-button" type="button" data-i18n-label="addCategory" disabled>
               <svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>
             </button>
           </div>
@@ -141,7 +215,7 @@
 
     <section class="group">
       <h2 class="group-title" data-i18n="data"></h2>
-      <div class="card cells">
+      <div class="card glass cells">
         <button id="exportBtn" class="cell cell-button" type="button">
           <svg class="icon" aria-hidden="true"><use href="#i-share"/></svg>
           <span data-i18n="export"></span>
@@ -162,7 +236,8 @@
   </main>
 
   <!-- ============================ Overlays ============================ -->
-  <dialog id="editDialog" class="sheet" aria-labelledby="editTitle">
+  <dialog id="editDialog" class="sheet glass-strong" aria-labelledby="editTitle">
+    <div class="sheet-grabber" aria-hidden="true"></div>
     <div class="sheet-header">
       <button id="editCancel" class="text-button" type="button" data-i18n="cancel"></button>
       <h2 id="editTitle" data-i18n="editTitle"></h2>
@@ -179,7 +254,7 @@
     </div>
   </dialog>
 
-  <dialog id="confirmDialog" class="alert" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
+  <dialog id="confirmDialog" class="alert glass-strong" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
     <div class="alert-content">
       <h2 id="confirmTitle"></h2>
       <p id="confirmMessage"></p>
@@ -190,14 +265,14 @@
     </div>
   </dialog>
 
-  <div id="toast" class="toast" role="status" aria-live="polite">
+  <div id="toast" class="toast glass-strong refract" role="status" aria-live="polite">
     <svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>
     <span id="toastText"></span>
   </div>
 
-  <div id="undoBar" class="snackbar" role="status" aria-live="polite" hidden>
-    <span id="undoText"></span>
-    <button id="undoBtn" type="button" data-i18n="undo"></button>
+  <div id="snackbar" class="snackbar glass-strong refract" role="status" aria-live="polite" hidden>
+    <span id="snackText"></span>
+    <button id="snackBtn" type="button"></button>
   </div>
 </body>
 </html>
