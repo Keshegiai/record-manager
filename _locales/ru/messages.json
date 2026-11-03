@@ -1,0 +1,5 @@
+{
+  "extName": { "message": "Record Manager" },
+  "extDescription": { "message": "Храните заметки, шаблоны ответов и AI-промпты в боковой панели. Приватно: всё остаётся на вашем устройстве." },
+  "actionTitle": { "message": "Открыть Record Manager" }
+}
