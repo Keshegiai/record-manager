@@ -2,7 +2,7 @@
 
 A Chrome / Edge extension for saving text snippets, reply templates and AI prompts in the browser's **side panel**, and inserting them straight into any text field.
 
-The design follows Apple's **Liquid Glass**: translucent, refractive surfaces with specular edges floating over a slowly moving ambient wallpaper. A solid (non-transparent) mode is one switch away.
+The design follows Apple's **Liquid Glass**: translucent, refractive surfaces on a plain, solid background — no gradients. A fully opaque mode is one switch away.
 
 ## Features
 

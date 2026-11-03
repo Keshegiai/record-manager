@@ -1,5 +1,5 @@
 /* Record Manager — Liquid Glass design.
-   Translucent, refractive surfaces float over a slowly moving ambient wallpaper.
+   Translucent, refractive surfaces on a plain, solid background. No gradients anywhere.
    html[data-theme] is always "light" or "dark" (Auto is resolved in JS).
    html[data-glass="off"] switches to solid, opaque surfaces. */
 
@@ -14,19 +14,14 @@
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* Light */
-  --bg: #eef1f7;
-  --orb-1: #74b6ff;
-  --orb-2: #d3a9ff;
-  --orb-3: #86ead6;
-  --orb-opacity: 0.65;
+  --bg: #f2f2f7;
 
-  --glass: rgba(255, 255, 255, 0.5);
-  --glass-strong: rgba(255, 255, 255, 0.66);
-  --glass-hover: rgba(255, 255, 255, 0.68);
-  --glass-rim: rgba(255, 255, 255, 0.95);
-  --glass-rim-2: rgba(255, 255, 255, 0.45);
-  --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.85), inset 0 -1px 0 rgba(255, 255, 255, 0.25);
-  --glass-shadow: 0 8px 28px rgba(35, 45, 90, 0.1), 0 1px 3px rgba(35, 45, 90, 0.06);
+  --glass: rgba(255, 255, 255, 0.78);
+  --glass-strong: rgba(255, 255, 255, 0.72);
+  --glass-hover: rgba(255, 255, 255, 0.95);
+  /* Flat rim: a hairline border plus a solid 1px top highlight — no gradient. */
+  --glass-inset: inset 0 0 0 0.5px rgba(0, 0, 0, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --glass-shadow: 0 6px 20px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.05);
   --glass-blur: 22px;
   --glass-sat: 190%;
   --solid-1: #ffffff;
@@ -55,19 +50,13 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #06060a;
-  --orb-1: #1b5cff;
-  --orb-2: #8a2fe0;
-  --orb-3: #0a9e92;
-  --orb-opacity: 0.42;
+  --bg: #000000;
 
-  --glass: rgba(255, 255, 255, 0.065);
-  --glass-strong: rgba(30, 30, 38, 0.62);
-  --glass-hover: rgba(255, 255, 255, 0.1);
-  --glass-rim: rgba(255, 255, 255, 0.4);
-  --glass-rim-2: rgba(255, 255, 255, 0.1);
-  --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.14), inset 0 -1px 0 rgba(255, 255, 255, 0.03);
-  --glass-shadow: 0 12px 34px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --glass: rgba(255, 255, 255, 0.1);
+  --glass-strong: rgba(36, 36, 40, 0.72);
+  --glass-hover: rgba(255, 255, 255, 0.14);
+  --glass-inset: inset 0 0 0 0.5px rgba(255, 255, 255, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   --solid-1: #1c1c1e;
   --solid-2: #2c2c2e;
 
@@ -96,10 +85,7 @@
   --glass: var(--solid-1);
   --glass-strong: var(--solid-1);
   --glass-hover: var(--solid-2);
-  --glass-rim: transparent;
-  --glass-rim-2: transparent;
   --glass-inset: inset 0 0 0 0.5px var(--separator);
-  --orb-opacity: 0;
 }
 :root[data-glass="off"][data-theme="light"] { --bg: #f2f2f7; }
 :root[data-glass="off"][data-theme="dark"] { --bg: #000000; --glass-strong: #1c1c1e; }
@@ -120,7 +106,7 @@ html { background: var(--bg); }
 body {
   margin: 0;
   min-width: 280px;
-  background: transparent; /* the ambient layer (z-index:-1) must stay visible */
+  background: var(--bg);
   color: var(--label);
   font: 400 15px/1.4 var(--font);
   letter-spacing: -0.01em;
@@ -164,35 +150,6 @@ button:disabled { cursor: default; }
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--dot, var(--c-gray)) 22%, transparent);
 }
 
-/* ============================== Ambient wallpaper ============================== */
-
-.ambient {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  overflow: hidden;
-  pointer-events: none;
-  background: var(--bg);
-  transition: background-color 0.4s;
-}
-.orb {
-  position: absolute;
-  width: 85vmax;
-  height: 85vmax;
-  border-radius: 50%;
-  opacity: var(--orb-opacity);
-  filter: blur(90px);
-  will-change: transform;
-  transition: opacity 0.6s, background-color 0.6s;
-}
-.orb-1 { top: -40vmax; left: -35vmax; background: var(--orb-1); animation: drift-1 34s ease-in-out infinite alternate; }
-.orb-2 { top: 18vh; right: -50vmax; background: var(--orb-2); animation: drift-2 41s ease-in-out infinite alternate; }
-.orb-3 { bottom: -55vmax; left: -20vmax; background: var(--orb-3); animation: drift-3 47s ease-in-out infinite alternate; }
-
-@keyframes drift-1 { to { transform: translate(18vmax, 22vmax) scale(1.1); } }
-@keyframes drift-2 { to { transform: translate(-22vmax, 14vmax) scale(0.9); } }
-@keyframes drift-3 { to { transform: translate(14vmax, -20vmax) scale(1.15); } }
-
 /* ============================== Glass material ============================== */
 
 .glass,
@@ -210,25 +167,6 @@ button:disabled { cursor: default; }
 .refract {
   -webkit-backdrop-filter: url(#lg-refract) blur(var(--refract-blur, 6px)) saturate(var(--glass-sat));
   backdrop-filter: url(#lg-refract) blur(var(--refract-blur, 6px)) saturate(var(--glass-sat));
-}
-
-/* Specular rim: a thin light edge, brighter at the top-left like a lit glass bevel. */
-.glass::after,
-.glass-strong::after,
-.glass-button::after,
-.chip::after,
-.send-button::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  padding: 1px;
-  border-radius: inherit;
-  pointer-events: none;
-  background: linear-gradient(150deg, var(--glass-rim) 0%, transparent 28%, transparent 66%, var(--glass-rim-2) 100%);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
 }
 
 :root[data-glass="off"] .glass,
@@ -328,14 +266,13 @@ button:disabled { cursor: default; }
   border-radius: 50%;
   background: var(--accent);
   color: var(--on-accent);
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 45%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
   transition: transform 0.35s var(--spring), background-color 0.2s, box-shadow 0.2s, opacity 0.2s;
 }
 .send-button .icon { width: 19px; height: 19px; stroke-width: 2.4; }
 .send-button:hover:not(:disabled) { transform: scale(1.07); }
 .send-button:active:not(:disabled) { transform: scale(0.92); }
 .send-button:disabled { background: var(--fill); color: var(--label-3); box-shadow: none; }
-.send-button:disabled::after { display: none; }
 
 .text-button {
   padding: 6px 4px;
@@ -373,20 +310,20 @@ button:disabled { cursor: default; }
   margin: 0 calc(var(--gutter) * -1);
   padding: 10px var(--gutter) 10px;
 }
-/* Scroll-edge effect: content softly blurs and fades as it slides under the toolbar. */
+/* Once content scrolls under the toolbar, it gets a frosted bar with a hairline (no fade). */
 .toolbar::before {
   content: "";
   position: absolute;
-  inset: 0 0 -18px;
+  inset: 0;
   z-index: -1;
   opacity: 0;
-  background: color-mix(in srgb, var(--bg) 55%, transparent);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  -webkit-mask-image: linear-gradient(#000 62%, transparent);
-  mask-image: linear-gradient(#000 62%, transparent);
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  box-shadow: 0 1px 0 var(--separator);
   transition: opacity 0.25s;
 }
+:root[data-glass="off"] .toolbar::before { background: var(--bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
 .toolbar.stuck::before { opacity: 1; }
 
 .search-row { display: flex; gap: 10px; align-items: center; }
@@ -497,7 +434,7 @@ button:disabled { cursor: default; }
 .chip[aria-pressed="true"] {
   background: var(--accent);
   color: var(--on-accent);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 6px 18px color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 .chip[aria-pressed="true"] .dot { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85); }
 
@@ -639,23 +576,6 @@ button:disabled { cursor: default; }
 
 /* ============================== Composer dock ============================== */
 
-/* Bottom scroll-edge: content softly blurs out as it slides under the dock. */
-#mainView::after {
-  content: "";
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 24;
-  height: 56px;
-  pointer-events: none;
-  background: color-mix(in srgb, var(--bg) 35%, transparent);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  -webkit-mask-image: linear-gradient(transparent, #000 70%);
-  mask-image: linear-gradient(transparent, #000 70%);
-}
-:root[data-glass="off"] #mainView::after { display: none; }
 
 .dock {
   --refract-blur: 14px;
@@ -1064,7 +984,6 @@ dialog::backdrop {
 
 /* Respect the OS "reduce transparency" preference. */
 @media (prefers-reduced-transparency: reduce) {
-  :root { --orb-opacity: 0; }
   .glass, .glass-strong, .glass-button, .chip, .refract {
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
